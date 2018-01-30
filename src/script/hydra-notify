@@ -64,8 +64,8 @@ elsif ($cmd eq "step-finished") {
     my $stepNr = shift @ARGV or die;
     my $step = $build->buildsteps->find({stepnr => $stepNr})
         or die "step $stepNr does not exist\n";
-    my $logPath = shift @ARGV or die;
-
+    # logPath might be empty if we used a binary substitute
+    my $logPath = shift @ARGV;
     foreach my $plugin (@plugins) {
         eval { $plugin->stepFinished($step, $logPath); };
         if ($@) {
