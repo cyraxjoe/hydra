@@ -136,9 +136,7 @@ rec {
       passthru.perlDeps = perlDeps;
     };
 
-  manual = pkgs.runCommand "hydra-manual-${version}"
-    { build = build.x86_64-linux;
-    }
+  manual = pkgs.runCommand "hydra-manual-${version}" { inherit build;  }
     ''
       mkdir -p $out/share
       cp -prvd $build/share/doc $out/share/
