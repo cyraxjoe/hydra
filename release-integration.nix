@@ -1,13 +1,17 @@
 { hydraSrc ? { outPath = ./.; revCount = 1234; rev = "abcdef"; }
 , nixpkgs ? <nixpkgs>
+, enableBazaarInput ? false
+, enableDarcsInput ? false
+, enableMercurialInput ? false
+, enableSubversionInput ? false
 , system ? "x86_64-linux"
 }:
 let
-  pkgs = import nixpkgs { };
-
+  pkgs = import nixpkgs { inherit system; };
   version = builtins.readFile ./version + "." + toString hydraSrc.revCount + "." + hydraSrc.rev;
 in
 with pkgs;
+
 rec {
   build =  
     let
@@ -18,6 +22,11 @@ rec {
         };
 
       nix = nixUnstable;
+
+      inputDeps = (if enableBazaarInput then [ bazaar ] else [])  ++
+                   (if enableDarcsInput then [ darcs ] else []) ++
+                   (if enableMercurialInput then [ mercurial ] else []) ++
+                   (if enableSubversionInput then [ subversion ] else []);
 
       perlDeps = buildEnv {
         name = "hydra-perl-deps";
@@ -83,20 +92,24 @@ rec {
 
       buildInputs =
         [ makeWrapper autoconf automake libtool unzip nukeReferences pkgconfig sqlite libpqxx
-          gitAndTools.topGit mercurial darcs subversion bazaar openssl bzip2 libxslt
+          gitAndTools.topGit openssl bzip2 libxslt
           guile # optional, for Guile + Guix support
-          perlDeps perl nix
-        ];
+          perlDeps perl nix ] ++ inputDeps;
 
       hydraPath = lib.makeBinPath (
-        [ sqlite subversion openssh nix coreutils findutils pixz
-          gzip bzip2 lzma gnutar unzip git gitAndTools.topGit mercurial darcs gnused bazaar
-        ] ++ lib.optionals stdenv.isLinux [ rpm dpkg cdrkit ] );
+        [ sqlite openssh nix coreutils findutils pixz
+          gzip bzip2 lzma gnutar unzip git gitAndTools.topGit gnused 
+        ] ++ inputDeps ++ lib.optionals stdenv.isLinux [ rpm dpkg cdrkit ] );
 
+      
       postUnpack = ''
         # Clean up when building from a working tree.
+        ${if enableDarcsInput then "" else "rm -f $srcRoot/lib/Hydra/Plugin/DarcsInput.pm" }
+        ${if enableBazaarInput then "" else "rm -f $srcRoot/lib/Hydra/Plugin/BazaarInput.pm" }
+        ${if enableMercurialInput then "" else "rm -f $srcRoot/lib/Hydra/Plugin/MercurialInput.pm" }
+        ${if enableSubversionInput then "" else "rm -f $srcRoot/lib/Hydra/Plugin/SubversionInput.pm" }
         (cd $sourceRoot && (git ls-files -o --directory | xargs -r rm -rfv)) || true
-      '';
+      '' ;
 
       configureFlags = [ "--with-docbook-xsl=${docbook_xsl}/xml/xsl/docbook" ];
 
