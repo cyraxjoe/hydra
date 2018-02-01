@@ -96,10 +96,12 @@ rec {
           guile # optional, for Guile + Guix support
           perlDeps perl nix ] ++ inputDeps;
 
+      doCheck = false;
       hydraPath = lib.makeBinPath (
         [ sqlite openssh nix coreutils findutils pixz
           gzip bzip2 lzma gnutar unzip git gitAndTools.topGit gnused 
         ] ++ inputDeps ++ lib.optionals stdenv.isLinux [ rpm dpkg cdrkit ] );
+
 
       
       postUnpack = ''
