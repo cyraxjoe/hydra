@@ -82,6 +82,22 @@ rec {
             aws-sdk-cpp'
           ];
       };
+      filesToDelete = let
+            darcsFiles = [ "src/lib/Hydra/Plugin/DarcsInput.pm" ];
+            subversionFiles = [ "src/lib/Hydra/Plugin/SubversionInput.pm" ];
+            bazaarFiles = [
+                "src/lib/Hydra/Plugin/BazaarInput.pm"
+                "src/script/nix-prefetch-bzr"
+            ];
+            mercurialFiles = [
+                "src/lib/Hydra/Plugin/MercurialInput.pm"
+                "src/script/nix-prefetch-hg"
+            ];
+            in
+             lib.concatStringsSep " "  ((if enableDarcsInput then [] else darcsFiles) ++
+                                        (if enableBazaarInput then [] else  bazaarFiles ) ++
+                                        (if enableMercurialInput then [] else  mercurialFiles) ++
+                                        (if enableSubversionInput then [] else subversionFiles));
     in
     releaseTools.nixBuild {
       name = "hydra-${version}";
@@ -97,19 +113,14 @@ rec {
           perlDeps perl nix ] ++ inputDeps;
 
       doCheck = false;
+
       hydraPath = lib.makeBinPath (
         [ sqlite openssh nix coreutils findutils pixz
           gzip bzip2 lzma gnutar unzip git gitAndTools.topGit gnused 
         ] ++ inputDeps ++ lib.optionals stdenv.isLinux [ rpm dpkg cdrkit ] );
 
-
-      
       postUnpack = ''
         # Clean up when building from a working tree.
-        ${if enableDarcsInput then "" else "rm -f $srcRoot/lib/Hydra/Plugin/DarcsInput.pm" }
-        ${if enableBazaarInput then "" else "rm -f $srcRoot/lib/Hydra/Plugin/BazaarInput.pm" }
-        ${if enableMercurialInput then "" else "rm -f $srcRoot/lib/Hydra/Plugin/MercurialInput.pm" }
-        ${if enableSubversionInput then "" else "rm -f $srcRoot/lib/Hydra/Plugin/SubversionInput.pm" }
         (cd $sourceRoot && (git ls-files -o --directory | xargs -r rm -rfv)) || true
       '' ;
 
@@ -118,6 +129,17 @@ rec {
       shellHook = ''
         PATH=$(pwd)/src/hydra-evaluator:$(pwd)/src/script:$(pwd)/src/hydra-eval-jobs:$(pwd)/src/hydra-queue-runner:$PATH
       '';
+
+      # remove the files related to the plugins that are not going to be used
+      # and remove the references to the prefetch scripts in the Makefile.am
+      patchPhase = ''
+          ${(if enableBazaarInput then "" else "sed -i '/.*nix-prefetch-bzr.*/d' ./src/script/Makefile.am")}
+          ${(if enableMercurialInput then "" else ''
+              sed -i -e 's/\(.*nix-prefetch-bzr\)\(.*\)/\1/' \
+                     -e 's/\(.*nix-prefetch-git\)\(.*\)/\1/'  \
+                     -e '/.*nix-prefetch-hg.*/d' ./src/script/Makefile.am
+          '')}
+      '' + "\n" + (if filesToDelete != "" then "rm -f ${filesToDelete}" else "");
 
       preConfigure = "autoreconf -vfi";
 
@@ -146,7 +168,6 @@ rec {
       dontStrip = true;
 
       meta.description = "Build of Hydra on ${system}";
-
       passthru.perlDeps = perlDeps;
     };
 
