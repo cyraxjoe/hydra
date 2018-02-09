@@ -1,1 +1,1 @@
-(import ./release.nix { shell = true; }).build.x86_64-linux
+(import ./release-integration.nix { shell = true; }).build

@@ -4,6 +4,7 @@
 , enableDarcsInput ? false
 , enableMercurialInput ? false
 , enableSubversionInput ? false
+, shell ? false
 , system ? "x86_64-linux"
 }:
 let
@@ -102,7 +103,7 @@ rec {
     releaseTools.nixBuild {
       name = "hydra-${version}";
 
-      src = hydraSrc;
+      src = if shell then null else hydraSrc;
 
       stdenv = overrideCC stdenv gcc6;
 
@@ -119,15 +120,16 @@ rec {
           gzip bzip2 lzma gnutar unzip git gitAndTools.topGit gnused 
         ] ++ inputDeps ++ lib.optionals stdenv.isLinux [ rpm dpkg cdrkit ] );
 
-      postUnpack = ''
+      postUnpack = lib.optionalString (!shell) ''
         # Clean up when building from a working tree.
         (cd $sourceRoot && (git ls-files -o --directory | xargs -r rm -rfv)) || true
-      '' ;
+      '';
 
       configureFlags = [ "--with-docbook-xsl=${docbook_xsl}/xml/xsl/docbook" ];
 
       shellHook = ''
         PATH=$(pwd)/src/hydra-evaluator:$(pwd)/src/script:$(pwd)/src/hydra-eval-jobs:$(pwd)/src/hydra-queue-runner:$PATH
+        ${lib.optionalString shell "PERL5LIB=$(pwd)/src/lib:$PERL5LIB"}
       '';
 
       # remove the files related to the plugins that are not going to be used
