@@ -26,9 +26,9 @@ my $CONFIG_SECTION = "event-exporter";
 Parser of the plugin configuration block, 
 
   <event-exporter>
-    enable = true
-    debug = false
-    socket = $ENV{HYDRA_DATA}/hydra.sock
+    enable = 1
+    debug = 0
+    socket = /var/run/hydra.sock
     listen = build-queued
     listen = build-started
     listen = build-finished
@@ -47,7 +47,7 @@ sub _pluginConfig {
   };
   # verify if the user defined options in the config file
   foreach my $option ("socket", "enable", "debug") {
-    if (defined $cfg->{socket}) {
+    if (defined $cfg->{$option}) {
       $values->{$option} = $cfg->{$option};
     }
   }
@@ -55,7 +55,7 @@ sub _pluginConfig {
   # or a single value, hence the special if block
   if ( defined $cfg->{listen} ) {
     if (ref($cfg->{listen}) eq "ARRAY") {
-      foreach my $eventType ($cfg->{listen}) {
+      foreach my $eventType (@{$cfg->{listen}}) {
         # add all the keys in the Hash/set, the value is
         # set to undef becase we only care about the lookup
         $values->{listen}->{$eventType} = ();
@@ -172,7 +172,7 @@ sub _printDebug {
 sub _writeEvent {
   my ($self, $type, $content) = @_;
   if( exists $self->{myConfig}->{listen}->{$type} ){
-    my $client = getSocketClient($self->{myconfig}->{socket});
+    my $client = getSocketClient($self->{myConfig}->{socket});
     print($client buildEventAsJSON($type, $content));
     print($client "\n");
   } else {
